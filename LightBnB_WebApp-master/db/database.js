@@ -3,12 +3,15 @@ const users = require("./json/users.json");
 const { Pool } = require("pg");
 
 const pool = new Pool({
-  user: 'vagrant',
-  password: '123',
-  host: 'localhost',
-  database: 'lightbnb'
+  user: "vagrant",
+  password: "123",
+  host: "localhost",
+  database: "lightbnb",
 });
-pool.query(`SELECT title FROM properties LIMIT 10;`).then(response => {(response)})
+pool.query(`SELECT title FROM properties LIMIT 10;`).then((response) => {
+  response;
+});
+
 
 /// Users
 
@@ -17,16 +20,24 @@ pool.query(`SELECT title FROM properties LIMIT 10;`).then(response => {(response
  * @param {String} email The email of the user.
  * @return {Promise<{}>} A promise to the user.
  */
-const getUserWithEmail = function (email) {
-  let resolvedUser = null;
-  for (const userId in users) {
-    const user = users[userId];
-    if (user && user.email.toLowerCase() === email.toLowerCase()) {
-      resolvedUser = user;
-    }
-  }
-  return Promise.resolve(resolvedUser);
+const getUserWithEmail = function(email) {
+  const promise = pool.query(`
+  SELECT * 
+  FROM users 
+  WHERE users.email = $1`, [email])
+    .then((result) => {
+      if (result.rows) {
+        return result.rows[0];
+      } else {
+        return null;
+      }
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
+  return promise;
 };
+  
 
 /**
  * Get a single user from the database given their id.
@@ -34,8 +45,23 @@ const getUserWithEmail = function (email) {
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function (id) {
-  return Promise.resolve(users[id]);
+  const promise = pool.query(`
+  SELECT * 
+  FROM users 
+  WHERE users.id = $1`, [id])
+    .then((result) => {
+      if (result.rows.length) {
+        return result.rows[0];
+      } else {
+        return null;
+      }
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
+  return promise;
 };
+
 
 /**
  * Add a new user to the database.
@@ -43,11 +69,20 @@ const getUserWithId = function (id) {
  * @return {Promise<{}>} A promise to the user.
  */
 const addUser = function (user) {
-  const userId = Object.keys(users).length + 1;
-  user.id = userId;
-  users[userId] = user;
-  return Promise.resolve(user);
+
+  const promise = pool.query(`
+  INSERT INTO users (name, email, password) 
+  VALUES ($1, $2, $3)
+  RETURNING *`, [user.name, user.email, user.password])
+    .then((result) => {
+      return result.rows[0];
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
+  return promise;
 };
+
 
 /// Reservations
 
@@ -70,10 +105,8 @@ const getAllReservations = function (guest_id, limit = 10) {
  */
 const getAllProperties = (options, limit = 10) => {
   return pool
-    .query(
-      `SELECT * FROM properties LIMTI $1`, [ limit])
+    .query(`SELECT * FROM properties LIMTI $1`, [limit])
     .then((result) => {
-      console.log(result.rows);
       return result.rows;
     })
     .catch((err) => {
